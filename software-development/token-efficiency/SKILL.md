@@ -1,7 +1,7 @@
 ---
 name: token-efficiency
 description: Use when minimizing token use in tool-heavy tasks.
-version: 1.0.0
+version: 1.0.1
 author: Hermes Agent
 license: MIT
 metadata:
@@ -214,6 +214,8 @@ When results return, merge by claim and evidence, deduplicate overlap, and resol
 8. **Using compact syntax on tiny data.** For small inputs, plain text or a Markdown table is often cheaper and clearer.
 9. **Treating memory as a transcript archive.** Save stable facts only; retrieve historical detail from session search or external memory.
 10. **Assuming secret scanners are perfect.** Explicitly exclude credentials, environment files, keys, and private data.
+11. **Searching a literal that starts with hyphens.** Some grep-backed wrappers can parse a pattern such as `--compress` as an option. Search with a surrounding token such as `["']--compress`, or use a non-leading literal; do not retry the same failing query unchanged.
+12. **Stopping at an async or adapter boundary.** When tracing code, include the worker, callback, registry, or adapter that links two confirmed symbols; otherwise a narrow context can omit the decisive call edge.
 
 ## Verification Checklist
 
