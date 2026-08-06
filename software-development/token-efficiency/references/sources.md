@@ -2,6 +2,10 @@
 
 Load this reference when selecting an optional compression tool, checking provenance, or extending the workflow.
 
+## Freshness and version policy
+
+The repository URLs, project descriptions, and command/options notes below were queried on **2026-08-06**. These projects use rolling upstream branches or release versions that may change after that date; no current-version claim is intended unless a version is explicitly pinned. Recheck the linked upstream documentation and release notes before relying on an option, benchmark, or compatibility assumption, and record a new query date when refreshing this file.
+
 ## Microsoft LLMLingua
 
 - Repository: https://github.com/microsoft/LLMLingua

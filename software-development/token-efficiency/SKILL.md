@@ -1,6 +1,6 @@
 ---
 name: token-efficiency
-description: Use when minimizing token use in tool-heavy tasks.
+description: "Token-efficient retrieval: large repos, handoffs, long sessions."
 version: 1.0.1
 author: Hermes Agent
 license: MIT
@@ -17,6 +17,13 @@ metadata:
 Reduce token use without reducing correctness. The core loop is **map → retrieve → read narrowly → compress evidence → verify**. Treat context as a budgeted working set, not a dumping ground.
 
 This workflow adapts ideas from LLMLingua (selective prompt compression), Repomix (repository packing and Tree-sitter compression), Serena (symbol-level semantic retrieval), Aider (repository maps), and TOON (compact representation of uniform structured data). Load `references/sources.md` only when source details or project-specific tooling are needed.
+
+### Before / after
+
+- **Before:** read every file in an unfamiliar repository and carry the full output into the next step.
+- **After:** map the tree, search for the target symbol, read its definition plus callers/configuration/tests, and hand off only those evidence pointers and unresolved questions.
+
+The after pattern narrows the working set; report token counts only when the same tokenizer measures both versions.
 
 ## When to Use
 
