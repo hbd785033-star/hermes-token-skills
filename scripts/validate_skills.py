@@ -68,8 +68,8 @@ def parse_frontmatter(path: Path, errors: list[str]) -> Skill | None:
     description = data.get("description")
     if not isinstance(description, str) or not description.strip():
         errors.append(f"{path}: description must be a non-empty string")
-    elif len(description) > 1024:
-        errors.append(f"{path}: description exceeds 1,024 characters")
+    elif len(description) > 60:
+        errors.append(f"{path}: description exceeds 60 characters for the compact skill index")
 
     hermes = data.get("metadata", {}).get("hermes") if isinstance(data.get("metadata"), dict) else None
     if not isinstance(hermes, dict):

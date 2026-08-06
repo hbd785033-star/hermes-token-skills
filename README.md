@@ -51,7 +51,7 @@ The repository is source; install a skill into the active Hermes profile's `skil
 |---|---|---|
 | Linux | `$HOME/.hermes/skills/` | `HERMES_HOME` may override the Hermes home. |
 | macOS | `$HOME/.hermes/skills/` | Use the same `HERMES_HOME` override when configured. |
-| Windows native | `%USERPROFILE%\\.hermes\\skills\\` | In Git Bash this is commonly `/c/Users/<user>/.hermes/skills/`; use the active profile rather than copying that literal. |
+| Windows native | `$HERMES_HOME/skills/` when `HERMES_HOME` is set; otherwise use the active Hermes installation's profile path | Hermes Desktop commonly uses `%LOCALAPPDATA%\\hermes\\skills\\`; do not copy a guessed path if `hermes config path` or the active environment says otherwise. |
 | WSL | `$HOME/.hermes/skills/` inside WSL | This is separate from a native Windows Hermes home unless explicitly shared. |
 | Named profile / managed install | `<Hermes home>/profiles/<profile>/skills/` (where supported) | Prefer Hermes's profile-aware commands and configuration over guessing a filesystem path. |
 
@@ -70,6 +70,7 @@ If an external skill directory is configured, Hermes can scan it alongside the l
 Run the repository validator from the repository root:
 
 ```bash
+python -m pip install -r requirements-dev.txt
 python scripts/validate_skills.py
 ```
 

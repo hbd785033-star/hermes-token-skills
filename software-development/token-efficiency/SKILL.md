@@ -1,6 +1,6 @@
 ---
 name: token-efficiency
-description: "Token-efficient retrieval: large repos, handoffs, long sessions."
+description: "Use for token-saving work in repos, sessions, and handoffs."
 version: 1.0.1
 author: Hermes Agent
 license: MIT

@@ -81,6 +81,21 @@ class ValidateSkillsTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("referenced file does not exist", result.stdout)
 
+    def test_description_must_fit_compact_skill_index(self) -> None:
+        long_description = "Use for " + ("very " * 12) + "long skill descriptions."
+        skill = VALID_SKILL.replace(
+            "Use when validating a sample skill repository.", long_description
+        )
+        result = self.run_validator(self.make_repository(skill))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("60 characters", result.stdout)
+
+    def test_repository_docs_explain_dev_dependencies_and_active_home(self) -> None:
+        root = Path(__file__).parents[1]
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        self.assertIn("requirements-dev.txt", readme)
+        self.assertIn("HERMES_HOME", readme)
+
 
 if __name__ == "__main__":
     unittest.main()
