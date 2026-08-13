@@ -47,24 +47,6 @@ The repository URLs, project descriptions, and command/options notes below were 
 - Hermes use: prefer Markdown tables for small human-facing datasets; consider TOON only when both ends support it and token measurement shows a benefit.
 - Caveat: the project states that deeply nested or non-uniform data may be more efficient in JSON. Do not convert blindly.
 
-## Selection Guide
+## Related guidance
 
-| Need | First choice | Escalation |
-|---|---|---|
-| One symbol or known file | Hermes search + targeted read | Serena semantic retrieval |
-| Large unfamiliar repository | path/symbol map | Repomix with filters and optional compression |
-| Oversized prose prompt | manual constraint/evidence separation | LLMLingua if available and verified |
-| Large uniform JSON records | compact table | TOON if supported and measured |
-| Cross-session continuity | concise handoff + stable memory | external semantic memory provider |
-
-## Measurement Protocol
-
-When a tokenizer or tool-reported count is available:
-
-1. Record the original token count.
-2. Record the reduced token count using the same tokenizer/model encoding.
-3. Run the same acceptance checks on original and reduced contexts.
-4. Report both counts and any observed quality difference.
-5. Do not generalize one workload's percentage to another workload.
-
-When no tokenizer is available, report only operational reductions such as files excluded, sections read, duplicate records removed, or tool output rows retained.
+Tool routing lives in `SKILL.md` (Routing Decision). Measurement rules and the benchmark harness live in `references/evaluation.md` and `benchmarks/`. This file only records upstream project details and provenance.
