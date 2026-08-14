@@ -1,18 +1,30 @@
 {
-  "_comment": "Format example only. Not a measured result. Null metrics must never be estimated.",
+  "_comment": "Format example only. Not a measured result. The referenced registry task is a non-runnable scaffold.",
   "task_id": "known-symbol-01",
+  "task_revision": 1,
+  "task_prompt": "",
+  "task_spec_sha256": "78cdec3ae30bdf9fdc7ee3ecda5298338235e4c79911719b9c2c7d2d7f6e98ff",
+  "trial_id": "t1",
+  "pair_order": "baseline-first",
   "mode": "baseline",
   "model": "example-model",
-  "tokenizer": "example-tokenizer",
+  "tokenizer": "provider-tokenizer",
+  "token_source": "provider_usage",
   "conditions": {
-    "fixture": "example-fixture@0000000",
+    "fixture": "example-repo@commit",
+    "provider": "example-provider",
+    "hermes_version": "0.20.0",
     "tools": ["search_files", "read_file"],
-    "temperature": 0
+    "temperature": 0,
+    "session_type": "fresh-isolated"
   },
   "input_tokens": null,
   "output_tokens": null,
   "tool_calls": null,
   "files_read": null,
   "success": true,
-  "verification": "passed"
+  "verification": {
+    "status": "passed",
+    "evidence": ["format example only"]
+  }
 }
