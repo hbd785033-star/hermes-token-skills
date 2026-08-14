@@ -70,5 +70,5 @@ Guards:
 - Duplicate `task_id` values within one input file are an error exit. Runs are never silently overwritten (no first-wins or last-wins).
 - Mismatched `model`, mismatched `tokenizer`, mismatched `conditions`, unpaired `task_id`, or missing token counts → `Token reduction unavailable / incomparable`. No percentage is printed.
 - Baseline run with `success=false` → `Token reduction unavailable / incomparable` (baseline task failed), even when token counts exist. No efficiency claim can rest on a failed baseline.
-- Optimized run with `success=false` → `FAILED OPTIMIZATION`, regardless of the token delta.
+- Comparable optimized run with `success=false` → `FAILED OPTIMIZATION`, regardless of the token delta; mismatched model, tokenizer, conditions, or a failed baseline remain incomparable first.
 - Malformed JSON or missing required fields → error exit, no summary.

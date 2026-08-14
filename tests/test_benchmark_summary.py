@@ -130,6 +130,65 @@ class BenchmarkSummaryTests(unittest.TestCase):
         self.assertIn("baseline task failed", result.stdout)
         self.assertNotIn("%", result.stdout)
 
+    def test_model_mismatch_precedes_optimized_failure(self) -> None:
+        result = self.run_pair(
+            make_run(),
+            make_run(mode="optimized", model="model-b", success=False, verification="failed"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Token reduction unavailable / incomparable", result.stdout)
+        self.assertIn("model differs", result.stdout)
+        self.assertNotIn("FAILED OPTIMIZATION", result.stdout)
+        self.assertNotIn("%", result.stdout)
+
+    def test_conditions_mismatch_precedes_optimized_failure(self) -> None:
+        result = self.run_pair(
+            make_run(),
+            make_run(
+                mode="optimized",
+                conditions=dict(CONDITIONS, temperature=1),
+                success=False,
+                verification="failed",
+            ),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Token reduction unavailable / incomparable", result.stdout)
+        self.assertIn("conditions differ", result.stdout)
+        self.assertNotIn("FAILED OPTIMIZATION", result.stdout)
+        self.assertNotIn("%", result.stdout)
+
+    def test_tokenizer_mismatch_precedes_optimized_failure(self) -> None:
+        result = self.run_pair(
+            make_run(),
+            make_run(mode="optimized", tokenizer="tok-b", success=False, verification="failed"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Token reduction unavailable / incomparable", result.stdout)
+        self.assertIn("tokenizer differs", result.stdout)
+        self.assertNotIn("FAILED OPTIMIZATION", result.stdout)
+        self.assertNotIn("%", result.stdout)
+
+    def test_baseline_failure_precedes_optimized_failure(self) -> None:
+        result = self.run_pair(
+            make_run(success=False, verification="failed"),
+            make_run(mode="optimized", success=False, verification="failed"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Token reduction unavailable / incomparable", result.stdout)
+        self.assertIn("baseline task failed", result.stdout)
+        self.assertNotIn("FAILED OPTIMIZATION", result.stdout)
+        self.assertNotIn("%", result.stdout)
+
+    def test_comparable_optimized_failure_remains_failed_optimization(self) -> None:
+        result = self.run_pair(
+            make_run(),
+            make_run(mode="optimized", success=False, verification="failed"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("FAILED OPTIMIZATION", result.stdout)
+        self.assertNotIn("Token reduction unavailable / incomparable", result.stdout)
+        self.assertNotIn("%", result.stdout)
+
     def test_mismatched_model_suppresses_savings_claim(self) -> None:
         result = self.run_pair(
             make_run(),

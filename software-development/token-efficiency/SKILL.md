@@ -1,7 +1,7 @@
 ---
 name: token-efficiency
 description: "Use for token-saving work in repos, sessions, and handoffs."
-version: 2.0.0
+version: 2.0.1
 author: hbd785033-star
 license: MIT
 metadata:
@@ -64,7 +64,7 @@ Load references only when the situation requires them:
 |---|---|
 | Known symbol/file | targeted search + narrow read |
 | Cross-file semantic relationship | Serena if available, else search-based tracing |
-| Large unfamiliar repository | filtered Repomix |
+| Large unfamiliar repository | cheap map + targeted search; filtered Repomix only if needed |
 | Large repetitive tool output | `execute_code` / local reduction |
 | Long prose context | manual reduction first |
 | Oversized prose after reduction | LLMLingua (optional) |

@@ -99,7 +99,7 @@ The `benchmarks/` directory defines a minimal task set (`known-symbol`, `cross-f
 python scripts/benchmark_summary.py baseline.json optimized.json
 ```
 
-The summary reports token deltas only when model, tokenizer, and task match and token counts were actually measured; otherwise it reports `Token reduction unavailable / incomparable`. An optimized run that fails its task is marked `FAILED OPTIMIZATION`, because token reduction without correctness is not success. See `benchmarks/README.md` for the run format.
+Token deltas are reported only for comparable successful runs: the task, model, tokenizer, and run conditions must match, both runs must succeed, and input-token counts must be measured. Otherwise the summary reports `Token reduction unavailable / incomparable`; a comparable optimized run that fails is marked `FAILED OPTIMIZATION`. See `benchmarks/README.md` for the run format.
 
 A note on numbers: this project makes no percentage token-savings claim of its own. File-size reductions in this repository are not model token savings, and upstream project benchmarks (for example LLMLingua or TOON) apply to those projects' evaluated workloads, not to yours.
 

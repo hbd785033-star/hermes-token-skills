@@ -12,8 +12,8 @@ Guards against misleading claims:
 - mismatched model, tokenizer, or conditions, unpaired task_id, or missing
   token counts produce "Token reduction unavailable / incomparable" and never
   a token-saving percentage;
-- an optimized run with success=false is marked "FAILED OPTIMIZATION"
-  regardless of the token delta;
+- an optimized run with success=false is marked "FAILED OPTIMIZATION" only
+  after model, tokenizer, conditions, and baseline success are comparable;
 - a baseline run with success=false is incomparable, because no efficiency
   claim can rest on a failed baseline;
 - malformed JSON or missing required fields exits non-zero with an error.
@@ -117,16 +117,16 @@ def summarize_pair(baseline: dict[str, Any], optimized: dict[str, Any]) -> str:
         f"  Success (base/opt):     {baseline['success']} / {optimized['success']}\n"
         f"  Verification (base/opt): {baseline['verification']} / {optimized['verification']}"
     )
-    if not optimized["success"]:
-        verdict = f"  Delta: {FAILED} (token reduction without correctness is not success)"
-    elif not baseline["success"]:
-        verdict = f"  Delta: {UNCOMPARABLE} (baseline task failed)"
-    elif baseline["model"] != optimized["model"]:
+    if baseline["model"] != optimized["model"]:
         verdict = f"  Delta: {UNCOMPARABLE} (model differs)"
     elif baseline["tokenizer"] != optimized["tokenizer"]:
         verdict = f"  Delta: {UNCOMPARABLE} (tokenizer differs)"
     elif baseline["conditions"] != optimized["conditions"]:
         verdict = f"  Delta: {UNCOMPARABLE} (conditions differ)"
+    elif not baseline["success"]:
+        verdict = f"  Delta: {UNCOMPARABLE} (baseline task failed)"
+    elif not optimized["success"]:
+        verdict = f"  Delta: {FAILED} (token reduction without correctness is not success)"
     elif baseline.get("input_tokens") is None or optimized.get("input_tokens") is None:
         verdict = f"  Delta: {UNCOMPARABLE} (missing token count)"
     else:

@@ -30,13 +30,13 @@ The repository provides a minimal harness:
 
 - `benchmarks/tasks.json` defines task categories (`known-symbol`, `cross-file`, `large-repo`, `tool-output`, `structured-data`, `handoff`) with goals, required evidence, and verification steps.
 - Each real run is recorded as one JSON object (see `benchmarks/README.md` for the schema). Token fields may be absent; absent fields must never be estimated or fabricated.
-- [scripts/benchmark_summary.py](../../../scripts/benchmark_summary.py) compares a baseline run (without this skill) against an optimized run (with this skill) for the same task.
+- `benchmark_summary.py` is a repository-level evaluation helper available in the source repository root's `scripts` directory; it compares a baseline run (without this skill) against an optimized run (with this skill) for the same task and is not required for runtime skill use.
 
 Comparison guards in the tool:
 
 - wrong file mode, swapped files, or duplicate `task_id` values → error exit, no comparison;
 - mismatched model, tokenizer, or run `conditions`, unpaired tasks, or missing token counts → `Token reduction unavailable / incomparable`, no percentage;
 - baseline run with `success=false` → incomparable; no efficiency claim rests on a failed baseline;
-- optimized run with `success=false` → `FAILED OPTIMIZATION`, regardless of token delta.
+- optimized run with `success=false` → `FAILED OPTIMIZATION` only after model, tokenizer, conditions, and baseline success are comparable.
 
 Use benchmark evidence to decide whether heavier retrieval machinery (for example an Aider-style context map) is justified. Do not build it speculatively.
