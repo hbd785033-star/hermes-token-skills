@@ -12,50 +12,64 @@
   "tasks": [
     {
       "id": "known-symbol-01",
+      "revision": 1,
       "category": "known-symbol",
       "goal": "Locate and explain a known symbol with minimum context.",
+      "prompt": "",
       "required_evidence": [],
       "verification": []
     },
     {
       "id": "known-symbol-02",
+      "revision": 1,
       "category": "known-symbol",
       "goal": "Edit a known function correctly after reading only its symbol neighborhood.",
+      "prompt": "",
       "required_evidence": [],
       "verification": []
     },
     {
       "id": "cross-file-01",
+      "revision": 1,
       "category": "cross-file",
       "goal": "Trace a call across an async, adapter, or registry boundary and identify the decisive call edge.",
+      "prompt": "",
       "required_evidence": [],
       "verification": []
     },
     {
       "id": "large-repo-01",
+      "revision": 1,
       "category": "large-repo",
       "goal": "Answer an architecture question in a large unfamiliar repository without reading the whole tree.",
+      "prompt": "",
       "required_evidence": [],
       "verification": []
     },
     {
       "id": "tool-output-01",
+      "revision": 1,
       "category": "tool-output",
       "goal": "Diagnose a failure from large repetitive tool output (logs or test runs) after local reduction.",
+      "prompt": "",
       "required_evidence": [],
       "verification": []
     },
     {
       "id": "structured-data-01",
+      "revision": 1,
       "category": "structured-data",
       "goal": "Summarize a large array of uniform structured records with a compact representation.",
+      "prompt": "",
       "required_evidence": [],
       "verification": []
     },
     {
       "id": "handoff-01",
+      "revision": 1,
       "category": "handoff",
       "goal": "Produce a structured handoff state block that lets a fresh session continue without replaying history.",
+      "prompt": "",
       "required_evidence": [],
       "verification": []
     }
