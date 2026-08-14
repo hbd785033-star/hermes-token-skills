@@ -60,6 +60,7 @@ TRIAL_PAIR_ORDER = {
 }
 VALID_TOKEN_SOURCES = ("provider_usage", "exact_tokenizer")
 VALID_VERIFICATION_STATUSES = ("passed", "failed")
+VALID_TEMPERATURE_SENTINELS = ("provider-managed",)
 REQUIRED_CONDITION_FIELDS = (
     "fixture",
     "provider",
@@ -255,12 +256,15 @@ def validate_run(run: Any, where: str) -> None:
             f"{where}: 'conditions.tools' must be a non-empty list of non-empty strings"
         )
     temperature = run["conditions"]["temperature"]
-    if (
-        not isinstance(temperature, (int, float))
-        or isinstance(temperature, bool)
-        or not math.isfinite(temperature)
-    ):
-        raise RunError(f"{where}: 'conditions.temperature' must be a finite number")
+    valid_numeric_temperature = (
+        isinstance(temperature, (int, float))
+        and not isinstance(temperature, bool)
+        and math.isfinite(temperature)
+    )
+    if not valid_numeric_temperature and temperature not in VALID_TEMPERATURE_SENTINELS:
+        raise RunError(
+            f"{where}: 'conditions.temperature' must be a finite number or 'provider-managed'"
+        )
     if not isinstance(run["success"], bool):
         raise RunError(f"{where}: 'success' must be a boolean")
     verification = run["verification"]
