@@ -1,0 +1,18 @@
+{
+  "_comment": "Format example only. Not a measured result. Null metrics must never be estimated.",
+  "task_id": "known-symbol-01",
+  "mode": "optimized",
+  "model": "example-model",
+  "tokenizer": "example-tokenizer",
+  "conditions": {
+    "fixture": "example-fixture@0000000",
+    "tools": ["search_files", "read_file"],
+    "temperature": 0
+  },
+  "input_tokens": null,
+  "output_tokens": null,
+  "tool_calls": null,
+  "files_read": null,
+  "success": true,
+  "verification": "passed"
+}

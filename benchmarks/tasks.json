@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "description": "Minimal task set for evaluating the token-efficiency skill. Tasks define goals and verification only; they contain no results.",
+  "categories": [
+    "known-symbol",
+    "cross-file",
+    "large-repo",
+    "tool-output",
+    "structured-data",
+    "handoff"
+  ],
+  "tasks": [
+    {
+      "id": "known-symbol-01",
+      "category": "known-symbol",
+      "goal": "Locate and explain a known symbol with minimum context.",
+      "required_evidence": [],
+      "verification": []
+    },
+    {
+      "id": "known-symbol-02",
+      "category": "known-symbol",
+      "goal": "Edit a known function correctly after reading only its symbol neighborhood.",
+      "required_evidence": [],
+      "verification": []
+    },
+    {
+      "id": "cross-file-01",
+      "category": "cross-file",
+      "goal": "Trace a call across an async, adapter, or registry boundary and identify the decisive call edge.",
+      "required_evidence": [],
+      "verification": []
+    },
+    {
+      "id": "large-repo-01",
+      "category": "large-repo",
+      "goal": "Answer an architecture question in a large unfamiliar repository without reading the whole tree.",
+      "required_evidence": [],
+      "verification": []
+    },
+    {
+      "id": "tool-output-01",
+      "category": "tool-output",
+      "goal": "Diagnose a failure from large repetitive tool output (logs or test runs) after local reduction.",
+      "required_evidence": [],
+      "verification": []
+    },
+    {
+      "id": "structured-data-01",
+      "category": "structured-data",
+      "goal": "Summarize a large array of uniform structured records with a compact representation.",
+      "required_evidence": [],
+      "verification": []
+    },
+    {
+      "id": "handoff-01",
+      "category": "handoff",
+      "goal": "Produce a structured handoff state block that lets a fresh session continue without replaying history.",
+      "required_evidence": [],
+      "verification": []
+    }
+  ]
+}
