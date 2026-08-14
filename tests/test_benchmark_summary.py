@@ -453,6 +453,81 @@ class BenchmarkSummaryTests(unittest.TestCase):
         self.assertIn("conditions.tools", result.stderr)
         self.assertNotIn("%", result.stdout)
 
+    def test_provider_managed_temperature_is_comparable(self) -> None:
+        provider_managed = dict(CONDITIONS, temperature="provider-managed")
+        result = self.run_pair(
+            make_run(conditions=provider_managed),
+            make_run(
+                mode="optimized",
+                conditions=provider_managed,
+                input_tokens=400,
+            ),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("-600 input tokens (-60.0%)", result.stdout)
+        self.assertNotIn("incomparable", result.stdout)
+
+    def test_provider_managed_vs_numeric_temperature_is_incomparable(self) -> None:
+        result = self.run_pair(
+            make_run(conditions=dict(CONDITIONS, temperature="provider-managed")),
+            make_run(mode="optimized", conditions=dict(CONDITIONS, temperature=0), input_tokens=400),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Token reduction unavailable / incomparable", result.stdout)
+        self.assertIn("conditions differ", result.stdout)
+        self.assertNotIn("%", result.stdout)
+
+    def test_arbitrary_temperature_string_is_invalid(self) -> None:
+        for value in ("default", "auto", "omitted", "unknown", "none", "provider_default", "0"):
+            with self.subTest(value=value):
+                result = self.run_pair(
+                    make_run(conditions=dict(CONDITIONS, temperature=value)),
+                    make_run(mode="optimized", input_tokens=700),
+                )
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("conditions.temperature", result.stderr)
+                self.assertNotIn("%", result.stdout)
+
+    def test_null_temperature_is_invalid(self) -> None:
+        result = self.run_pair(
+            make_run(conditions=dict(CONDITIONS, temperature=None)),
+            make_run(mode="optimized", input_tokens=700),
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("temperature", result.stderr)
+        self.assertNotIn("%", result.stdout)
+
+    def test_boolean_temperature_is_invalid(self) -> None:
+        for value in (True, False):
+            with self.subTest(value=value):
+                result = self.run_pair(
+                    make_run(conditions=dict(CONDITIONS, temperature=value)),
+                    make_run(mode="optimized", input_tokens=700),
+                )
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("conditions.temperature", result.stderr)
+                self.assertNotIn("%", result.stdout)
+
+    def test_non_finite_temperature_is_invalid(self) -> None:
+        for value in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(
+                    benchmark_summary.RunError,
+                    "conditions.temperature",
+                ):
+                    benchmark_summary.validate_run(
+                        make_run(conditions=dict(CONDITIONS, temperature=value)),
+                        "run",
+                    )
+
+    def test_numeric_temperature_remains_valid(self) -> None:
+        result = self.run_pair(
+            make_run(conditions=dict(CONDITIONS, temperature=0)),
+            make_run(mode="optimized", conditions=dict(CONDITIONS, temperature=0), input_tokens=400),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("-600 input tokens (-60.0%)", result.stdout)
+
     def test_non_numeric_temperature_is_invalid(self) -> None:
         result = self.run_pair(
             make_run(conditions=dict(CONDITIONS, temperature="zero")),

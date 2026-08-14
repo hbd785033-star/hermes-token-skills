@@ -42,4 +42,6 @@ Comparison guards in the tool:
 
 `token_source` is declared provenance metadata. The harness validates the declared source type, not the authenticity of the provider/tokenizer measurement. Real Evaluation must preserve external provider usage or tokenizer evidence outside the comparator result.
 
+The controlled-run `temperature` condition accepts a finite number only when the evaluated runtime explicitly sets that value. Use the exact sentinel `"provider-managed"` when the Hermes/provider path omits the temperature parameter and leaves sampling behavior to the runtime or provider. The sentinel is not a numeric estimate, does not imply temperature 0 or 1, and makes no claim that a provider default is stable across providers or over time. Baseline and optimized runs still require exact equality of their complete `conditions` objects, so a provider-managed run is incomparable with a numerically controlled run.
+
 Use benchmark evidence to decide whether heavier retrieval machinery (for example an Aider-style context map) is justified. Do not build it speculatively.
