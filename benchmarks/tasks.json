@@ -12,12 +12,26 @@
   "tasks": [
     {
       "id": "known-symbol-01",
-      "revision": 1,
+      "revision": 2,
       "category": "known-symbol",
       "goal": "Locate and explain a known symbol with minimum context.",
-      "prompt": "",
-      "required_evidence": [],
-      "verification": []
+      "prompt": "Locate `hermes_constants.get_hermes_home()` in this repository and explain:\n\n1. its exact resolution precedence,\n2. the fallback used on native Windows when HERMES_HOME is unset,\n3. the condition that triggers the profile-fallback warning.\n\nCite the exact repository file and the relevant evidence for each point.\n\nDo not modify files.",
+      "required_evidence": [
+        "Identify hermes_constants.py as the defining file.",
+        "Establish that a context-local override is checked first.",
+        "Establish that the HERMES_HOME environment variable is checked next.",
+        "Establish that the platform-native default is used last.",
+        "Establish that native Windows uses LOCALAPPDATA/hermes, falling back to Path.home() / \"AppData\" / \"Local\" as the base when LOCALAPPDATA is unset or blank.",
+        "Establish that the profile-fallback warning requires HERMES_HOME to be unset or blank, active_profile to exist and contain a non-empty profile name, and that name to differ from \"default\"."
+      ],
+      "verification": [
+        "The answer identifies hermes_constants.py.",
+        "The precedence is exactly context-local override, then HERMES_HOME, then the platform-native default.",
+        "The native Windows fallback behavior is correct.",
+        "The profile-fallback warning condition is correct.",
+        "The answer makes no unsupported claim.",
+        "The fixture repository remains unmodified."
+      ]
     },
     {
       "id": "known-symbol-02",
@@ -39,12 +53,31 @@
     },
     {
       "id": "large-repo-01",
-      "revision": 1,
+      "revision": 2,
       "category": "large-repo",
-      "goal": "Answer an architecture question in a large unfamiliar repository without reading the whole tree.",
-      "prompt": "",
-      "required_evidence": [],
-      "verification": []
+      "goal": "Trace worktree-safe relative path resolution across CLI setup, terminal backends, file tools, local execution, and regression tests.",
+      "prompt": "You are investigating a worktree-safety issue in this Hermes repository. Starting with a normal CLI/TUI session, trace how a relative path passed to a file operation is anchored to the active workspace, and explain the fallback behavior when the configured or recorded working directory is stale, missing, or belongs to a container backend.\n\nAnswer in five sections:\n\n1. CLI/session setup: explain how terminal backend and CWD settings are normalized and bridged to terminal environment variables, including local versus non-local placeholder behavior and the gateway exception.\n2. Environment selection: explain how the terminal layer chooses backend and CWD defaults, when an explicit Docker CWD is remapped to `/workspace`, and what fallback applies to an unusable container CWD or a failed config bridge.\n3. File resolution: give the exact workspace-root precedence used for relative paths, and explain why relative/sentinel CWD values do not remain as resolution anchors. Include host/Windows/MSYS and container path differences.\n4. Local execution: explain how the local environment handles per-command processes, session environment/CWD persistence, and a directory that exists but cannot be entered.\n5. Tests: identify the repository tests that protect these behaviors, including a stale relative `TERMINAL_CWD` versus live session CWD case, an early workspace-divergence warning case, and the CLI local/non-local CWD rules.\n\nFor every claim, cite the exact repository file and a nearby symbol, test, or line range. Do not modify files.",
+      "required_evidence": [
+        "Evidence location: cli.py. Establish that the CLI normalizes documented terminal.backend to env_type, uses os.getcwd() for the local backend, removes placeholder CWD values for non-local backends, bridges terminal settings to TERMINAL_* variables, force-exports TERMINAL_CWD in the CLI, and does not clobber an existing gateway TERMINAL_CWD.",
+        "Evidence location: tools/terminal_tool.py. Establish that an explicit terminal section in config.yaml overrides matching environment values while omitted keys preserve environment values; without a terminal section, an existing TERMINAL_ENV is preserved and defaults are backfilled only when no selection exists; a bridge exception leaves the historical local default available.",
+        "Evidence location: tools/terminal_tool.py. Establish the backend CWD defaults (local process CWD, SSH home, Vercel workspace root, and /root-like default for other backends), Docker host-CWD remapping to /workspace only when enabled and valid, and fallback from unusable host/relative container CWD to the backend default.",
+        "Evidence location: tools/file_tools.py. Establish the exact workspace-root precedence for relative paths: live terminal session CWD, registered task/session override, sentinel-free absolute TERMINAL_CWD, then process CWD; establish that the resulting base is absolute and relative/sentinel CWD values are not retained as ambiguous anchors.",
+        "Evidence location: tools/file_tools.py. Establish the host versus container path distinction: Windows/MSYS host paths are normalized for host resolution, container paths are normalized without host symlink dereferencing, and a relative path resolving outside the authoritative workspace produces a divergence warning.",
+        "Evidence location: tools/environments/local.py. Establish that LocalEnvironment spawns a fresh shell process per execute call, preserves an environment snapshot and CWD across the session, and replaces a missing or unusable CWD with a safe usable directory before process creation.",
+        "Evidence locations: tests/tools/test_file_tools_cwd_resolution.py, tests/cli/test_cwd_env_respect.py, and tests/tools/test_local_cwd_permission_fallback.py. Identify assertions covering stale relative TERMINAL_CWD versus live session CWD, first-write workspace-divergence warnings, local/non-local CLI CWD rules, container symlink preservation, and recovery from an existing-but-unenterable directory."
+      ],
+      "verification": [
+        "The answer cites all seven required evidence locations or their exact repository paths.",
+        "The answer states the CLI local/non-local/gateway CWD rules without reversing the precedence or claiming that local config CWD overrides os.getcwd().",
+        "The answer states the terminal config bridge precedence and the local-default fallback on bridge failure without claiming that a failed bridge aborts terminal use.",
+        "The answer states the four-step workspace-root precedence exactly: live session CWD, registered override, absolute TERMINAL_CWD, process CWD.",
+        "The answer distinguishes host/Windows/MSYS path normalization from container POSIX normalization without host symlink dereferencing.",
+        "The answer states the Docker /workspace remap and unusable-container-CWD fallback conditions without claiming that every Docker CWD is remapped.",
+        "The answer states LocalEnvironment per-call process behavior, session snapshot/CWD persistence, and safe fallback for an unenterable directory.",
+        "The answer identifies the requested regression-test cases and preserves a file/test/symbol citation for each conclusion.",
+        "The answer contains no contradictory claim that process CWD is the first workspace authority, relative/sentinel CWD is a valid stable anchor, or container paths should follow host symlinks.",
+        "The fixture repository remains unchanged and the task is answered as read-only repository analysis."
+      ]
     },
     {
       "id": "tool-output-01",

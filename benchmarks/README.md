@@ -23,7 +23,21 @@ A minimal harness for judging whether the `token-efficiency` skill actually help
 
 Each task has an `id`, `category`, `goal`, `required_evidence`, and `verification`. Fill in `required_evidence` and `verification` when pinning a task to a concrete repository or dataset.
 
-`tasks.json` is the authoritative registry. A runnable task requires `id`, a positive integer `revision`, `category`, `goal`, a non-empty exact `prompt`, non-empty `required_evidence`, and non-empty `verification` criteria. The checked-in tasks remain Phase A scaffolds with empty prompt/evidence/verification, so runs referencing them are invalid until Phase B makes selected definitions runnable. Do not invent criteria merely to satisfy the schema.
+`tasks.json` is the authoritative registry. A runnable task requires `id`, a positive integer `revision`, `category`, `goal`, a non-empty exact `prompt`, non-empty `required_evidence`, and non-empty `verification` criteria. The registry contains both concrete frozen contracts and deliberate scaffolds: `known-symbol-01` revision 2 is a negative-control / non-trigger contract, while `large-repo-01` revision 2 is a positive-trigger contract. Other entries remain scaffolds until a later phase makes them runnable. Do not invent criteria merely to satisfy the schema.
+
+### Evaluation status and classifications
+
+The repository includes a correctness-first Evaluation Harness and supports provider-native usage evidence. It does not turn every run into a token result. Keep these classifications distinct:
+
+- **Negative control / non-trigger task:** the task is intentionally covered by the Skill's `When NOT to Use` contract. Natural non-loading is expected and is not a savings result. `known-symbol-01` is the current example.
+- **Positive-trigger task:** the task contract naturally matches the Skill's `When to Use` guidance and is suitable for exposure testing. `large-repo-01` is the current frozen example.
+- **Valid comparable pair:** both fresh runs use the same task identity, model/provider, tokenizer, complete conditions, fixture, pair order, and acceptance contract; both infrastructure and correctness gates pass; optimized treatment exposure and provider-native token telemetry are proven.
+- **Incomparable run:** a required identity, condition, telemetry, route, or pair-control field differs or is unavailable. No percentage is reported.
+- **Failed optimization:** the optimized run is otherwise comparable but fails its correctness contract. Lower measured input tokens do not override this classification.
+- **No-treatment-exposure:** the optimized run completes without mechanically attributable native loading of the target Skill. Do not infer exposure from Skill index visibility or absence from `skills.disabled`.
+- **Infrastructure-invalid run:** a provider/runtime/network/common-control gate fails. Preserve the evidence, reject the pair, and do not use its token fields for a savings claim.
+
+Current V2.1 status: the known-symbol negative control is complete; the large-repo positive baseline is complete and correct; no valid optimized positive pair is available because the frozen network execution path could not be reproduced reliably. Consequently, no project-specific savings percentage is claimed.
 
 ## Run format
 

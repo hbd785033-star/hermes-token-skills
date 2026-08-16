@@ -6,6 +6,8 @@ Token-aware context engineering skills for [Hermes Agent](https://github.com/Nou
 
 A collection of reusable Hermes skills. Each skill is a directory containing a `SKILL.md`; optional supporting material belongs under that skill's `references/`, `templates/`, `scripts/`, or `assets/` directory.
 
+The `token-efficiency` workflow is model-agnostic by design; effectiveness must be validated per model and workload. Model-agnostic design is a positioning boundary, not a claim that every model produces the same result.
+
 | Skill | Path | Use it for |
 |---|---|---|
 | `token-efficiency` | [`software-development/token-efficiency/`](software-development/token-efficiency/) | Token-aware retrieval and context discipline for large repositories, long sessions, and agent handoffs. |
@@ -102,6 +104,17 @@ python scripts/benchmark_summary.py baseline.json optimized.json
 Token deltas are reported only for comparable successful runs: the task, model, tokenizer, and run conditions must match, both runs must succeed, and input-token counts must be measured. Otherwise the summary reports `Token reduction unavailable / incomparable`; a comparable optimized run that fails is marked `FAILED OPTIMIZATION`. See `benchmarks/README.md` for the run format.
 
 A note on numbers: this project makes no percentage token-savings claim of its own. File-size reductions in this repository are not model token savings, and upstream project benchmarks (for example LLMLingua or TOON) apply to those projects' evaluated workloads, not to yours.
+
+## Evaluation Status
+
+- The correctness-first Evaluation Harness is implemented and supports provider-native usage measurements.
+- Runs with mismatched conditions, failed correctness, missing treatment exposure, invalid infrastructure, or unavailable telemetry are rejected rather than converted into savings claims.
+- `known-symbol-01` revision 2 is a completed negative-control / non-trigger task; its lack of natural Skill exposure is expected from the Skill's `When NOT to Use` contract.
+- `large-repo-01` revision 2 is the frozen positive-trigger task. Its DeepSeek V4 Pro baseline completed with correctness passing.
+- A valid optimized pair for the positive task is currently unavailable because the frozen network execution path could not be reproduced reliably.
+- Therefore this project makes no project-specific token-savings percentage claim yet.
+
+Repeated positive-task evaluation can resume when the execution environment is stable. Cross-model validation is backlog work for V2.2, not a V2.1 release claim or blocker.
 
 ## Directory and naming conventions
 
