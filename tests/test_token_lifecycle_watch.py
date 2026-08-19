@@ -1,8 +1,9 @@
 import importlib.util
-import io
 import json
+import os
 import subprocess
 import sys
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -19,6 +20,33 @@ SPEC.loader.exec_module(watch)
 
 
 class TokenLifecycleWatchTests(unittest.TestCase):
+    def python_child(self, source):
+        return [sys.executable, "-u", "-c", source]
+
+    def bounded_thread_call(self, function, timeout=1.5):
+        outcome = {}
+
+        def run():
+            try:
+                outcome["value"] = function()
+            except BaseException as exc:
+                outcome["error"] = exc
+
+        thread = threading.Thread(target=run, daemon=True)
+        thread.start()
+        thread.join(timeout)
+        return thread, outcome
+
+    def force_test_cleanup(self, transport):
+        process = getattr(transport, "_process", None)
+        if process is not None and process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=2)
+
     def target(self, **overrides):
         value = {
             "kind": "SESSION",
@@ -238,6 +266,129 @@ class TokenLifecycleWatchTests(unittest.TestCase):
             transport.call("session.active_list", {})["method"],
             "session.active_list",
         )
+
+    def test_silent_gateway_startup_has_real_wall_clock_timeout(self):
+        transport = watch.StdioGatewayTransport(
+            self.python_child("import time; time.sleep(60)"),
+            startup_timeout=0.15,
+            cleanup_timeout=0.2,
+        )
+        started = time.monotonic()
+        thread, outcome = self.bounded_thread_call(transport.start)
+        try:
+            self.assertFalse(thread.is_alive(), "startup wait exceeded test bound")
+            self.assertIsInstance(outcome.get("error"), TimeoutError)
+            self.assertLess(time.monotonic() - started, 1.0)
+        finally:
+            self.force_test_cleanup(transport)
+
+    def test_ready_gateway_without_rpc_response_times_out(self):
+        child = """
+import json, sys, time
+print(json.dumps({"jsonrpc":"2.0","method":"event","params":{"type":"gateway.ready"}}), flush=True)
+sys.stdin.readline()
+time.sleep(60)
+"""
+        transport = watch.StdioGatewayTransport(
+            self.python_child(child),
+            startup_timeout=0.5,
+            response_timeout=0.15,
+            cleanup_timeout=0.2,
+        )
+        transport.start()
+        thread, outcome = self.bounded_thread_call(
+            lambda: transport.call("session.active_list", {"token": "never-print-me"})
+        )
+        try:
+            self.assertFalse(thread.is_alive(), "RPC wait exceeded test bound")
+            self.assertIsInstance(outcome.get("error"), TimeoutError)
+            self.assertNotIn("never-print-me", str(outcome.get("error")))
+        finally:
+            self.force_test_cleanup(transport)
+
+    def test_close_retains_exact_handle_and_proves_owned_child_terminal(self):
+        child = """
+import json, sys, time
+print(json.dumps({"jsonrpc":"2.0","method":"event","params":{"type":"gateway.ready"}}), flush=True)
+sys.stdin.read()
+time.sleep(60)
+"""
+        transport = watch.StdioGatewayTransport(
+            self.python_child(child), startup_timeout=0.5, cleanup_timeout=0.1
+        )
+        transport.start()
+        owned = transport.process
+        transport.close()
+        self.assertIs(transport.process, owned)
+        self.assertIsNotNone(owned.poll())
+
+    def test_close_cannot_target_unrelated_process(self):
+        foreign = subprocess.Popen(
+            self.python_child("import time; time.sleep(60)"),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        child = """
+import json, sys
+print(json.dumps({"jsonrpc":"2.0","method":"event","params":{"type":"gateway.ready"}}), flush=True)
+sys.stdin.read()
+"""
+        transport = watch.StdioGatewayTransport(
+            self.python_child(child), startup_timeout=0.5, cleanup_timeout=0.2
+        )
+        try:
+            transport.start()
+            transport.close()
+            self.assertIsNone(foreign.poll())
+        finally:
+            foreign.terminate()
+            foreign.wait(timeout=2)
+
+    def test_cleanup_inconclusive_retains_exact_handle(self):
+        class StubbornProcess:
+            pid = 4242
+            stdin = None
+
+            def poll(self):
+                return None
+
+            def wait(self, timeout):
+                raise subprocess.TimeoutExpired("owned", timeout)
+
+            def terminate(self):
+                pass
+
+            def kill(self):
+                pass
+
+        transport = watch.StdioGatewayTransport(
+            self.python_child("pass"), cleanup_timeout=0.01
+        )
+        owned = StubbornProcess()
+        transport._process = owned
+        with self.assertRaisesRegex(RuntimeError, "CLEANUP INCONCLUSIVE.*4242"):
+            transport.close()
+        self.assertIs(transport.process, owned)
+
+    def test_stderr_saturation_cannot_deadlock_gateway_startup(self):
+        child = """
+import json, sys
+sys.stderr.write("sensitive-stderr\\n" * 200000)
+sys.stderr.flush()
+print(json.dumps({"jsonrpc":"2.0","method":"event","params":{"type":"gateway.ready"}}), flush=True)
+sys.stdin.read()
+"""
+        transport = watch.StdioGatewayTransport(
+            self.python_child(child), startup_timeout=1.0, cleanup_timeout=0.2
+        )
+        thread, outcome = self.bounded_thread_call(transport.start, timeout=2.0)
+        try:
+            self.assertFalse(thread.is_alive(), "stderr saturation blocked startup")
+            self.assertNotIn("error", outcome)
+            self.assertEqual(transport.stderr_policy, "discard")
+        finally:
+            self.force_test_cleanup(transport)
 
     def test_redaction_removes_secret_values_and_query_credentials(self):
         payload = {

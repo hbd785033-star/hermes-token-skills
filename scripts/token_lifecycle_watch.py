@@ -6,9 +6,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import queue
 import shlex
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Sequence
@@ -89,13 +91,41 @@ class ReadOnlyGatewayTransport:
 class StdioGatewayTransport(ReadOnlyGatewayTransport):
     """JSON-RPC client for a separately launched Hermes TUI Gateway process."""
 
-    def __init__(self, command: Sequence[str], *, cwd: str | None = None, env: Mapping[str, str] | None = None):
+    def __init__(
+        self,
+        command: Sequence[str],
+        *,
+        cwd: str | None = None,
+        env: Mapping[str, str] | None = None,
+        startup_timeout: float = 30.0,
+        response_timeout: float = 30.0,
+        cleanup_timeout: float = 5.0,
+    ):
         self.command = list(command)
         self.cwd = cwd
         self.env = dict(env or os.environ)
+        self.startup_timeout = self._positive_timeout(startup_timeout, "startup_timeout")
+        self.response_timeout = self._positive_timeout(response_timeout, "response_timeout")
+        self.cleanup_timeout = self._positive_timeout(cleanup_timeout, "cleanup_timeout")
+        self.stderr_policy = "discard"
         self._next_id = 1
         self._process: subprocess.Popen[str] | None = None
+        self._stdout_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
+        self._stdout_reader: threading.Thread | None = None
+        self._close_lock = threading.Lock()
         super().__init__(self._call)
+
+    @staticmethod
+    def _positive_timeout(value: float, name: str) -> float:
+        value = float(value)
+        if value <= 0:
+            raise ValueError(f"{name} must be positive")
+        return value
+
+    @property
+    def process(self) -> subprocess.Popen[str] | None:
+        """Exact helper owned by this transport; retained through cleanup proof."""
+        return self._process
 
     def start(self) -> None:
         if self._process is not None:
@@ -106,61 +136,111 @@ class StdioGatewayTransport(ReadOnlyGatewayTransport):
             env=self.env,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            # Raw Gateway stderr can contain credentials or environment metadata.
+            # Discarding it also removes the undrained-pipe saturation deadlock.
+            stderr=subprocess.DEVNULL,
             text=True,
             encoding="utf-8",
             errors="replace",
         )
-        # The Gateway emits an event before handling requests. Consume it
-        # without logging payloads, because event payloads can contain metadata.
-        self._read_until_ready()
+        self._stdout_reader = threading.Thread(
+            target=self._read_stdout,
+            daemon=True,
+            name=f"lifecycle-gateway-stdout-{self._process.pid}",
+        )
+        self._stdout_reader.start()
+        try:
+            # The Gateway emits an event before handling requests. Consume it
+            # without logging payloads, because event payloads can contain metadata.
+            self._read_until_ready()
+        except BaseException:
+            self.close()
+            raise
+
+    def _read_stdout(self) -> None:
+        process = self._process
+        if process is None or process.stdout is None:
+            self._stdout_queue.put(("error", RuntimeError("Gateway stdout is unavailable")))
+            return
+        try:
+            for line in process.stdout:
+                self._stdout_queue.put(("line", line))
+        except BaseException as exc:
+            self._stdout_queue.put(("error", exc))
+        finally:
+            self._stdout_queue.put(("eof", None))
+
+    def _next_message(self, deadline: float, operation: str) -> Mapping[str, Any]:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError(f"timed out waiting for Hermes Gateway {operation}")
+        try:
+            kind, payload = self._stdout_queue.get(timeout=remaining)
+        except queue.Empty as exc:
+            raise TimeoutError(f"timed out waiting for Hermes Gateway {operation}") from exc
+        if kind == "error":
+            raise RuntimeError(f"Hermes Gateway stdout reader failed during {operation}")
+        if kind == "eof":
+            raise RuntimeError(f"Hermes Gateway exited during {operation}")
+        try:
+            message = json.loads(payload)
+        except (json.JSONDecodeError, TypeError):
+            return {}
+        return message if isinstance(message, Mapping) else {}
 
     def _read_until_ready(self) -> None:
-        assert self._process is not None and self._process.stdout is not None
-        deadline = time.monotonic() + 30.0
-        while time.monotonic() < deadline:
-            line = self._process.stdout.readline()
-            if not line:
-                raise RuntimeError("Hermes Gateway exited before gateway.ready")
-            try:
-                message = json.loads(line)
-            except json.JSONDecodeError:
-                continue
+        deadline = time.monotonic() + self.startup_timeout
+        while True:
+            message = self._next_message(deadline, "readiness")
             if message.get("method") == "event":
                 params = message.get("params") or {}
                 if params.get("type") == "gateway.ready":
                     return
             elif "id" in message:
                 return
-        raise TimeoutError("timed out waiting for Hermes Gateway readiness")
 
     def _call(self, method: str, params: Mapping[str, Any]) -> Mapping[str, Any]:
         self.start()
         assert self._process is not None
-        if self._process.stdin is None or self._process.stdout is None:
+        if self._process.stdin is None:
             raise RuntimeError("Gateway stdio is unavailable")
         request_id = self._next_id
         self._next_id += 1
         self._process.stdin.write(json.dumps({"jsonrpc": "2.0", "id": request_id, "method": method, "params": dict(params)}) + "\n")
         self._process.stdin.flush()
+        deadline = time.monotonic() + self.response_timeout
         while True:
-            line = self._process.stdout.readline()
-            if not line:
-                raise RuntimeError("Hermes Gateway closed before the read-only response")
-            response = json.loads(line)
+            response = self._next_message(deadline, f"response for {method}")
             if response.get("id") == request_id:
                 if "error" in response:
                     raise RuntimeError(str(redact(response["error"])))
                 return response.get("result") or {}
 
     def close(self) -> None:
-        process = self._process
-        self._process = None
-        if process is None:
-            return
-        if process.stdin is not None:
-            process.stdin.close()
-        process.wait(timeout=5)
+        with self._close_lock:
+            process = self._process
+            if process is None or process.poll() is not None:
+                return
+            if process.stdin is not None and not process.stdin.closed:
+                process.stdin.close()
+            try:
+                process.wait(timeout=self.cleanup_timeout)
+            except subprocess.TimeoutExpired:
+                process.terminate()
+                try:
+                    process.wait(timeout=self.cleanup_timeout)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    try:
+                        process.wait(timeout=self.cleanup_timeout)
+                    except subprocess.TimeoutExpired as exc:
+                        raise RuntimeError(
+                            f"CLEANUP INCONCLUSIVE: exact owned child pid={process.pid} remains live"
+                        ) from exc
+            if process.poll() is None:
+                raise RuntimeError(
+                    f"CLEANUP INCONCLUSIVE: exact owned child pid={process.pid} remains live"
+                )
 
 
 def provider_call(*_args: Any, **_kwargs: Any) -> None:

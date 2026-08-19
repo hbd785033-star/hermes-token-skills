@@ -39,7 +39,7 @@ Use this precedence:
 live Gateway identity > process evidence > persisted history
 ```
 
-If a historical running row is absent from the live set, classify it as `STALE_RECORD`, not live work.
+If historical evidence was explicitly supplied or is otherwise available, a historical running row absent from the live set can be classified as `STALE_RECORD`, not live work. The V1 live transport does not call `session.list` or enumerate persisted history, so a live-only report cannot claim that all stale historical rows were checked.
 
 ## Session Method Semantics
 

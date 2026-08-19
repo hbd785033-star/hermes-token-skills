@@ -80,7 +80,7 @@ Use evidence in this order:
 5. process evidence when genuinely necessary;
 6. persisted DB/history as historical evidence only.
 
-`session.active_list` is a live in-memory Gateway snapshot in the verified Hermes `v0.20.4` installation. `session.list` is persisted or historical discovery. A historical `running` row never proves current execution.
+`session.active_list` is a live in-memory Gateway snapshot in the verified Hermes `v0.20.4` installation. `session.list` is persisted or historical discovery, but the V1 live transport does not acquire it. A historical `running` row never proves current execution. `STALE_RECORD` is available only when historical evidence is explicitly supplied or otherwise available; a live-only run does not claim to enumerate or audit all historical rows.
 
 Keep target kinds distinct:
 
@@ -99,7 +99,7 @@ The classifier returns:
 - `LONG_RUNNING_EXPECTED`: live work is explicitly allowed to continue and has a proven owner, budget, and terminal condition.
 - `POSSIBLE_RUNAWAY`: risk or continued activity exists, but the evidence is insufficient for confirmation.
 - `CONFIRMED_RUNAWAY`: live identity, ownership, terminal expectation, continued objective activity, and the breach are all proven.
-- `STALE_RECORD`: historical state says running, but live runtime evidence is absent.
+- `STALE_RECORD`: explicitly supplied or otherwise available historical state says running, but live runtime evidence is absent.
 - `UNKNOWN`: live truth, ownership, expectation, or telemetry is insufficient.
 
 A long duration alone is not runaway. A parent response returning is not proof that an allowed detached child should stop. Repeated `429`, `5xx`, timeout, or retry signals are risk evidence only; provider error alone cannot confirm runaway.
@@ -118,7 +118,7 @@ For an explicit expected-terminal scope:
 2. query live Gateway truth;
 3. take a bounded second snapshot when activity comparison is needed;
 4. verify every target is terminal or absent from the live set;
-5. separate stale history from live execution;
+5. separate supplied historical evidence from live execution; do not claim a historical audit when none was acquired;
 6. report unresolved or unknown targets.
 
 Only a non-empty explicit scope with every target terminal can report `TERMINAL PROOF PASS`. Any unknown or still-live expected target reports `TERMINAL PROOF INCONCLUSIVE`.
