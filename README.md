@@ -1,6 +1,6 @@
 # Hermes Token Skills
 
-Token-aware context engineering skills for [Hermes Agent](https://github.com/NousResearch/hermes-agent). Reduce unnecessary context without sacrificing correctness.
+Token-aware context engineering and execution lifecycle safety skills for [Hermes Agent](https://github.com/NousResearch/hermes-agent). Reduce unnecessary context without sacrificing correctness, and detect lifecycle risk when installed-runtime evidence is sufficient.
 
 ## What is this?
 
@@ -11,12 +11,15 @@ The `token-efficiency` workflow is model-agnostic by design; effectiveness must 
 | Skill | Path | Use it for |
 |---|---|---|
 | `token-efficiency` | [`software-development/token-efficiency/`](software-development/token-efficiency/) | Token-aware retrieval and context discipline for large repositories, long sessions, and agent handoffs. |
+| `token-lifecycle-guard` | [`software-development/token-lifecycle-guard/`](software-development/token-lifecycle-guard/) | Deterministic read-only live lifecycle evidence and conservative classification for delegated and background work. |
 
 The index is intentionally short and should be updated when a skill is added, renamed, or removed. The validator discovers every `SKILL.md` independently of this table.
 
 ## When should I use it?
 
-Use `token-efficiency` when working in unfamiliar or large repositories, researching across many sources, running long sessions near context compression, handling repetitive tool output, or coordinating cost-sensitive multi-agent work. Skip it when one small file or one focused call already answers the question.
+Use `token-efficiency` when working in unfamiliar or large repositories, researching across many sources, running long sessions near context compression, handling repetitive tool output, or coordinating cost-sensitive multi-agent work. Use `token-lifecycle-guard` when spawned or background work needs lifecycle observation or postflight proof. Skip both when one small file or one focused call already answers the question.
+
+For lifecycle checks, the Gateway supplies observed runtime truth, the caller or workflow supplies explicit lifecycle expectations, and the classifier compares them deterministically. Standalone live mode does not infer that work should have ended; breach confirmation and terminal proof require caller-supplied expectation evidence.
 
 ## How does it work?
 
