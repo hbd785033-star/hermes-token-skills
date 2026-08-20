@@ -50,6 +50,8 @@ Prevent Policy
   -> Postflight / Terminal Audit
 ```
 
+`Prevent Policy` belongs to the caller or workflow contract. The live Gateway supplies observed runtime truth only; it does not generate lifecycle expectation or policy truth. The deterministic classifier compares explicit caller-supplied expectations with normalized observations.
+
 It does not call an LLM, delegate a reviewer, poll a provider through a model, kill a process, interrupt a session or subagent, close a session, pause delegation, delete state, or rewrite configuration.
 
 The stdio transport uses one daemon stdout reader that owns blocking pipe I/O and a bounded queue consumed by the request thread. Startup and RPC deadlines use `time.monotonic()`. Cleanup retains the exact child `Popen` handle, proves the child terminal with bounded EOF/terminate/kill waits, then performs a bounded stdout-reader join; an inconclusive reader or process state is reported explicitly.
@@ -106,6 +108,8 @@ The classifier returns:
 
 A long duration alone is not runaway. A parent response returning is not proof that an allowed detached child should stop. Repeated `429`, `5xx`, timeout, or retry signals are risk evidence only; provider error alone cannot confirm runaway.
 
+Standalone live mode does not infer terminal expectation from elapsed time, UI closure, a parent response, model judgment, historical `running` state, or generic process state. `CONFIRMED_RUNAWAY` requires proven live identity, proven ownership, a proven explicit terminal expectation, a target that is still live, and proven continued objective activity. Without explicit policy or expectation evidence, classification remains conservative: `UNKNOWN`, `POSSIBLE_RUNAWAY`, or inconclusive as the available evidence requires.
+
 Missing token telemetry is unknown, not zero. The installed Hermes `session.usage` response may contain display zeroes when no usage is available; treat those as unproven unless the response includes verified provider-native usage provenance.
 
 ## Bounded Observation
@@ -124,6 +128,8 @@ For an explicit expected-terminal scope:
 6. report unresolved or unknown targets.
 
 Only a non-empty explicit scope with every target terminal can report `TERMINAL PROOF PASS`. Any unknown or still-live expected target reports `TERMINAL PROOF INCONCLUSIVE`.
+
+Cleanup is bounded and exact-helper-owned. A `CLEANUP INCONCLUSIVE` raised from final CLI cleanup does not create a false pass, leak request parameters, mutate a foreign process or Hermes runtime, or bypass a deadline. Consistent structured CLI presentation of that cleanup error is a P2/P3 follow-up, not a V1 publication blocker.
 
 ## Security
 
