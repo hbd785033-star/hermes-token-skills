@@ -52,6 +52,8 @@ Prevent Policy
 
 It does not call an LLM, delegate a reviewer, poll a provider through a model, kill a process, interrupt a session or subagent, close a session, pause delegation, delete state, or rewrite configuration.
 
+The stdio transport uses one daemon stdout reader that owns blocking pipe I/O and a bounded queue consumed by the request thread. Startup and RPC deadlines use `time.monotonic()`. Cleanup retains the exact child `Popen` handle, proves the child terminal with bounded EOF/terminate/kill waits, then performs a bounded stdout-reader join; an inconclusive reader or process state is reported explicitly.
+
 The implementation is the [watchdog script](../../scripts/token_lifecycle_watch.py). Its pure classifier consumes normalized snapshots, while the Gateway transport is a separate injectable boundary. Run a fixture-only check with:
 
 ```bash

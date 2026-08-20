@@ -121,4 +121,6 @@ update normalized adapter and fixtures if semantics changed
 
 The TUI Gateway stdio entrypoint emits a `gateway.ready` event and then accepts one JSON-RPC request per line. A read-only shadow smoke may launch this installed entrypoint as a separate process, consume readiness, query only allowlisted methods, and close stdin.
 
+The V1 transport has one stdout reader thread, so the controlling thread never performs blocking pipe reads. The reader only feeds an internal queue; malformed, unrelated, or wrong-ID messages do not complete a wait or reset its monotonic deadline. After the exact child is terminal, cleanup joins the reader within a bounded interval and reports `CLEANUP INCONCLUSIVE` if terminal reader state cannot be proven.
+
 Authentication and profile credentials must come from the installed Hermes secure environment/profile mechanism. Never add a `--token` option to the watchdog, never print raw environment contents, and never log a Gateway URL containing credential query parameters. Redact values and report only credential presence.

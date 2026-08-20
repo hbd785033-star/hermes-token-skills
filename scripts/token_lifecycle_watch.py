@@ -196,8 +196,6 @@ class StdioGatewayTransport(ReadOnlyGatewayTransport):
                 params = message.get("params") or {}
                 if params.get("type") == "gateway.ready":
                     return
-            elif "id" in message:
-                return
 
     def _call(self, method: str, params: Mapping[str, Any]) -> Mapping[str, Any]:
         self.start()
@@ -213,34 +211,57 @@ class StdioGatewayTransport(ReadOnlyGatewayTransport):
             response = self._next_message(deadline, f"response for {method}")
             if response.get("id") == request_id:
                 if "error" in response:
-                    raise RuntimeError(str(redact(response["error"])))
+                    raise RuntimeError(f"Hermes Gateway returned an error for {method}")
                 return response.get("result") or {}
+
+    def _join_stdout_reader(self, process: subprocess.Popen[str]) -> None:
+        reader = self._stdout_reader
+        if reader is None or reader is threading.current_thread():
+            return
+        reader.join(timeout=self.cleanup_timeout)
+        if reader.is_alive():
+            stdout = process.stdout
+            if stdout is not None and not stdout.closed:
+                try:
+                    stdout.close()
+                except (OSError, ValueError):
+                    pass
+            reader.join(timeout=self.cleanup_timeout)
+        if reader.is_alive():
+            raise RuntimeError(
+                f"CLEANUP INCONCLUSIVE: exact owned child pid={process.pid} stdout reader remains active"
+            )
+        stdout = process.stdout
+        if stdout is not None and not stdout.closed:
+            stdout.close()
 
     def close(self) -> None:
         with self._close_lock:
             process = self._process
-            if process is None or process.poll() is not None:
+            if process is None:
                 return
             if process.stdin is not None and not process.stdin.closed:
                 process.stdin.close()
-            try:
-                process.wait(timeout=self.cleanup_timeout)
-            except subprocess.TimeoutExpired:
-                process.terminate()
+            if process.poll() is None:
                 try:
                     process.wait(timeout=self.cleanup_timeout)
                 except subprocess.TimeoutExpired:
-                    process.kill()
+                    process.terminate()
                     try:
                         process.wait(timeout=self.cleanup_timeout)
-                    except subprocess.TimeoutExpired as exc:
-                        raise RuntimeError(
-                            f"CLEANUP INCONCLUSIVE: exact owned child pid={process.pid} remains live"
-                        ) from exc
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        try:
+                            process.wait(timeout=self.cleanup_timeout)
+                        except subprocess.TimeoutExpired as exc:
+                            raise RuntimeError(
+                                f"CLEANUP INCONCLUSIVE: exact owned child pid={process.pid} remains live"
+                            ) from exc
             if process.poll() is None:
                 raise RuntimeError(
                     f"CLEANUP INCONCLUSIVE: exact owned child pid={process.pid} remains live"
                 )
+            self._join_stdout_reader(process)
 
 
 def provider_call(*_args: Any, **_kwargs: Any) -> None:

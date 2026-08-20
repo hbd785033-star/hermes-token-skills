@@ -38,12 +38,11 @@ class TokenLifecycleWatchTests(unittest.TestCase):
         return thread, outcome
 
     def force_test_cleanup(self, transport):
-        process = getattr(transport, "_process", None)
-        if process is not None and process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=2)
-            except subprocess.TimeoutExpired:
+        try:
+            transport.close()
+        except RuntimeError:
+            process = getattr(transport, "_process", None)
+            if process is not None and process.poll() is None:
                 process.kill()
                 process.wait(timeout=2)
 
@@ -279,6 +278,59 @@ class TokenLifecycleWatchTests(unittest.TestCase):
             self.assertFalse(thread.is_alive(), "startup wait exceeded test bound")
             self.assertIsInstance(outcome.get("error"), TimeoutError)
             self.assertLess(time.monotonic() - started, 1.0)
+            self.assertIsNotNone(transport.process.poll())
+            self.assertFalse(transport._stdout_reader.is_alive())
+        finally:
+            self.force_test_cleanup(transport)
+
+    def test_startup_ignores_malformed_and_non_ready_messages(self):
+        child = """
+import json, sys, time
+noise = ["not-json\\n", json.dumps({"jsonrpc":"2.0","method":"event","params":{"type":"other"}}) + "\\n", json.dumps({"jsonrpc":"2.0","id":999,"result":{}}) + "\\n"]
+sys.stdout.write("".join(noise * 2000))
+sys.stdout.flush()
+time.sleep(60)
+"""
+        transport = watch.StdioGatewayTransport(
+            self.python_child(child), startup_timeout=0.15, cleanup_timeout=0.2
+        )
+        started = time.monotonic()
+        thread, outcome = self.bounded_thread_call(transport.start)
+        try:
+            self.assertFalse(thread.is_alive(), "startup wait exceeded test bound")
+            self.assertIsInstance(outcome.get("error"), TimeoutError)
+            self.assertLess(time.monotonic() - started, 1.0)
+            self.assertIsNotNone(transport.process.poll())
+            self.assertFalse(transport._stdout_reader.is_alive())
+        finally:
+            self.force_test_cleanup(transport)
+
+    def test_rpc_deadline_ignores_malformed_events_and_wrong_ids(self):
+        child = """
+import json, sys, time
+print(json.dumps({"jsonrpc":"2.0","method":"event","params":{"type":"gateway.ready"}}), flush=True)
+request = sys.stdin.readline()
+noise = ["not-json\\n", json.dumps({"jsonrpc":"2.0","method":"event","params":{"type":"unrelated"}}) + "\\n", json.dumps({"jsonrpc":"2.0","id":999,"result":{}}) + "\\n"]
+sys.stdout.write("".join(noise * 2000))
+sys.stdout.flush()
+time.sleep(60)
+"""
+        transport = watch.StdioGatewayTransport(
+            self.python_child(child),
+            startup_timeout=0.5,
+            response_timeout=0.15,
+            cleanup_timeout=0.2,
+        )
+        transport.start()
+        started = time.monotonic()
+        thread, outcome = self.bounded_thread_call(
+            lambda: transport.call("session.usage", {"token": "never-print-me"})
+        )
+        try:
+            self.assertFalse(thread.is_alive(), "RPC wait exceeded test bound")
+            self.assertIsInstance(outcome.get("error"), TimeoutError)
+            self.assertLess(time.monotonic() - started, 1.0)
+            self.assertNotIn("never-print-me", str(outcome.get("error")))
         finally:
             self.force_test_cleanup(transport)
 
@@ -296,13 +348,33 @@ time.sleep(60)
             cleanup_timeout=0.2,
         )
         transport.start()
+        started = time.monotonic()
         thread, outcome = self.bounded_thread_call(
             lambda: transport.call("session.active_list", {"token": "never-print-me"})
         )
         try:
             self.assertFalse(thread.is_alive(), "RPC wait exceeded test bound")
             self.assertIsInstance(outcome.get("error"), TimeoutError)
+            self.assertLess(time.monotonic() - started, 1.0)
             self.assertNotIn("never-print-me", str(outcome.get("error")))
+        finally:
+            self.force_test_cleanup(transport)
+
+    def test_all_read_only_rpc_methods_are_reachable(self):
+        child = """
+import json, sys
+print(json.dumps({"jsonrpc":"2.0","method":"event","params":{"type":"gateway.ready"}}), flush=True)
+for line in sys.stdin:
+    request = json.loads(line)
+    print(json.dumps({"jsonrpc":"2.0","id":request["id"],"result":{"method":request["method"]}}), flush=True)
+"""
+        transport = watch.StdioGatewayTransport(
+            self.python_child(child), startup_timeout=0.5, response_timeout=0.5, cleanup_timeout=0.2
+        )
+        try:
+            for method in sorted(watch.READ_ONLY_METHODS):
+                with self.subTest(method=method):
+                    self.assertEqual(transport.call(method, {}).get("method"), method)
         finally:
             self.force_test_cleanup(transport)
 
@@ -321,6 +393,35 @@ time.sleep(60)
         transport.close()
         self.assertIs(transport.process, owned)
         self.assertIsNotNone(owned.poll())
+        self.assertFalse(transport._stdout_reader.is_alive())
+        transport.close()
+
+    def test_close_after_child_exits_joins_reader_and_is_idempotent(self):
+        child = """
+import json, sys
+print(json.dumps({"jsonrpc":"2.0","method":"event","params":{"type":"gateway.ready"}}), flush=True)
+"""
+        transport = watch.StdioGatewayTransport(
+            self.python_child(child), startup_timeout=0.5, cleanup_timeout=0.2
+        )
+        transport.start()
+        transport.process.wait(timeout=2)
+        transport.close()
+        transport.close()
+        self.assertFalse(transport._stdout_reader.is_alive())
+
+    def test_failed_start_cleanup_is_terminal_and_idempotent(self):
+        transport = watch.StdioGatewayTransport(
+            self.python_child("import time; time.sleep(60)"),
+            startup_timeout=0.1,
+            cleanup_timeout=0.1,
+        )
+        with self.assertRaises(TimeoutError):
+            transport.start()
+        self.assertIsNotNone(transport.process)
+        self.assertIsNotNone(transport.process.poll())
+        self.assertFalse(transport._stdout_reader.is_alive())
+        transport.close()
 
     def test_close_cannot_target_unrelated_process(self):
         foreign = subprocess.Popen(
@@ -387,6 +488,24 @@ sys.stdin.read()
             self.assertFalse(thread.is_alive(), "stderr saturation blocked startup")
             self.assertNotIn("error", outcome)
             self.assertEqual(transport.stderr_policy, "discard")
+        finally:
+            self.force_test_cleanup(transport)
+
+    def test_gateway_error_diagnostics_do_not_expose_payload_secrets(self):
+        child = """
+import json, sys
+print(json.dumps({"jsonrpc":"2.0","method":"event","params":{"type":"gateway.ready"}}), flush=True)
+request = json.loads(sys.stdin.readline())
+print(json.dumps({"jsonrpc":"2.0","id":request["id"],"error":{"message":"sentinel-gateway-secret", "data":{"token":"sentinel-gateway-secret"}}}), flush=True)
+"""
+        transport = watch.StdioGatewayTransport(
+            self.python_child(child), startup_timeout=0.5, response_timeout=0.5, cleanup_timeout=0.2
+        )
+        try:
+            transport.start()
+            with self.assertRaises(RuntimeError) as raised:
+                transport.call("session.status", {})
+            self.assertNotIn("sentinel-gateway-secret", str(raised.exception))
         finally:
             self.force_test_cleanup(transport)
 
