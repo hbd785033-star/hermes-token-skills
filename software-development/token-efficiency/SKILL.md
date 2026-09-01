@@ -64,7 +64,7 @@ Load references only when the situation requires them:
 |---|---|
 | Known symbol/file | targeted search + narrow read |
 | Cross-file semantic relationship | Serena if available, else search-based tracing |
-| Large unfamiliar repository | cheap map + targeted search; filtered Repomix only if needed |
+| Large unfamiliar repository | targeted search first; optionally use `scripts/context_lens.py repo-map` when a cheap deterministic map materially narrows search; filtered Repomix as broad fallback |
 | Large repetitive tool output | `execute_code` / local reduction |
 | Long prose context | manual reduction first |
 | Oversized prose after reduction | LLMLingua (optional) |
@@ -75,7 +75,7 @@ Every optional tool requires an availability check and a fallback. Never install
 
 ## Core Workflow
 
-1. **Map.** Define the deliverable and the minimum evidence for it. Build a cheap map (tree, manifests, entry points, candidate URLs or schemas) before reading content. Prefer `search_files(target='files')` or `search_files(output_mode='files_only'|'count')` over content reads.
+1. **Map.** Define the deliverable and the minimum evidence for it. Build a cheap map (tree, manifests, entry points, candidate URLs or schemas) before reading content. Prefer `search_files(target='files')` or `search_files(output_mode='files_only'|'count')` over content reads. In a large unfamiliar repository, `scripts/context_lens.py repo-map` is optional when its bounded deterministic map materially narrows the next targeted searches.
 2. **Retrieve.** Use the narrowest operation: exact search → minimal-context search → targeted section read → expand around a confirmed hit → full read only when justified. For code, follow the symbol neighborhood: definition → callers/imports → configuration → tests. Details: `references/retrieval.md`.
 3. **Narrow Read.** Expand only around confirmed hits. Never enumerate a repository and read every match.
 4. **Reduce Tool Output.** Filter and deduplicate output before it enters reasoning context. When tool calls would return large or repetitive output, use `execute_code` or local reduction to batch, filter, and print only the evidence needed for reasoning. Details: `references/compression.md`.
